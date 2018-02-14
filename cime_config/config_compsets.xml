@@ -34,6 +34,54 @@
     - science_support  (if this compset is supported scientifically with control simulations)
   </help>
 
+  <!-- F MML compsets (coupled to atmosphere) -->
+  
+  <!-- CAM6 -->
+  <compset>
+    <alias>MML_2000_CAM6</alias>
+    <lname>2000_CAM60_CLM50%SP_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  <compset>
+    <alias>MML_1850_CAM6</alias>
+    <lname>1850_CAM60_CLM50%SP_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  
+  <!-- CAM5 -->
+  <compset>
+    <alias>MML_2000_CAM5</alias>
+    <lname>2000_CAM50_CLM50%SP_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  <compset>
+    <alias>MML_1850_CAM5</alias>
+    <lname>1850_CAM50_CLM50%SP_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  
+  <!-- CAM5 with BGC -->
+  <compset>
+    <alias>MML_2000_CAM5BGC</alias>
+    <lname>2000_CAM50_CLM50%BGC_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  <compset>
+    <alias>MML_1850_CAM5BGC</alias>
+    <lname>1850_CAM50_CLM50%BGC_CICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>
+  <compset>
+    <alias>MML_2000_CAM5BGC_noice</alias>
+    <lname>2000_CAM50_CLM50%BGC_SICE_DOCN%SOM_SROF_SGLC_SWAV</lname>
+  </compset>  
+  
+  
+  <!-- I MML compsets for running offline -->
+  <compset>
+    <alias>I1850MMLOFFLINE</alias>
+    <lname>1850_DATM%CPLHIST_CLM50%SP_SICE_SOCN_RTM_SGLC_SWAV</lname>
+  </compset>
+  <compset>
+    <alias>I2000MMLOFFLINE</alias>
+    <lname>2000_DATM%CPLHIST_CLM50%SP_SICE_SOCN_RTM_SGLC_SWAV</lname>
+  </compset>
+
+  <!-- I single point forcing -->
 
   <compset>
     <alias>I1PtClm45SpGs</alias>

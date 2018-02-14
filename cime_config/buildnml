@@ -44,6 +44,7 @@ def buildnml(case, caseroot, compname):
     clm_bldnml_opts = case.get_value("CLM_BLDNML_OPTS")
     clm_nml_use_case = case.get_value("CLM_NML_USE_CASE")
     clm_force_coldstart = case.get_value("CLM_FORCE_COLDSTART")
+    lnd_tuning_mode = case.get_value("LND_TUNING_MODE")
     clm_accelerated_spinup = case.get_value("CLM_ACCELERATED_SPINUP")
     comp_glc = case.get_value("COMP_GLC")
     comp_atm = case.get_value("COMP_ATM")
@@ -59,7 +60,6 @@ def buildnml(case, caseroot, compname):
     run_refdate = case.get_value("RUN_REFDATE")
     run_reftod = case.get_value("RUN_REFTOD")
     glc_nec = case.get_value("GLC_NEC")
-    mask = case.get_value("MASK_GRID")
 
     # -----------------------------------------------------
     # Clear out old data
@@ -89,13 +89,34 @@ def buildnml(case, caseroot, compname):
         clm_phys = "clm4_5"
     elif "clm5_0" in clm_config_opts:
         clm_phys = "clm5_0"
+    elif "clm4_0" in clm_config_opts:
+        clm_phys = "clm4_0"
     else:
-        expect(False, "CLM_CONFIG_OPTS must support either clm4_5 or clm5_0 physics")
+        expect(False, "CLM_CONFIG_OPTS must support either clm4_5, clm5_0, or clm4_0 physics")
 
-    config_cache_text = _config_cache_template.format(clm_phys=clm_phys)
-    config_cache_path = os.path.join(caseroot, "Buildconf", "clmconf", "config_cache.xml")
-    with open(config_cache_path, 'w') as config_cache_file:
-        config_cache_file.write(config_cache_text)
+    if clm_phys == "clm4_0":
+        # call buildcpp to obtain clm_cppdefs if it is not set in env_build.xml
+        call_buildcpp = False
+        if not os.path.exists(os.path.join(caseroot,"LockedFiles","env_build.xml")):
+            call_buildcpp = True
+        else:
+            file1 = os.path.join(caseroot,"env_build.xml")  
+            file2 = os.path.join(caseroot,"LockedFiles","env_build.xml")
+            if not filecmp.cmp(file1, file2):
+                call_buildcpp = True
+        if call_buildcpp:
+            cmd = os.path.join(os.path.join(lnd_root,"cime_config","buildcpp"))
+            logger.info("     ...calling clm buildcpp to set build time options")
+            try:
+                mod = imp.load_source("buildcpp", cmd)
+                mod.buildcpp(case)
+            except:
+                raise
+    else:
+        config_cache_text = _config_cache_template.format(clm_phys=clm_phys)
+        config_cache_path = os.path.join(caseroot, "Buildconf", "clmconf", "config_cache.xml")
+        with open(config_cache_path, 'w') as config_cache_file:
+            config_cache_file.write(config_cache_text)
 
     # -----------------------------------------------------
     # Determine input arguments into build-namelist
@@ -129,6 +150,12 @@ def buildnml(case, caseroot, compname):
     if lnd_grid == 'T341':
         lnd_grid = '512x1024'
 
+    clmusr = ""
+    if lnd_grid == "CLM_USRDAT":
+        clm_usrdat_name = case.get_value("CLM_USRDAT_NAME")
+        lnd_grid = clm_usrdat_name
+        clmusr = " -clm_usr_name %s "%clm_usrdat_name
+
     if comp_atm != "datm":
         nomeg = "-no-megan"
     else:
@@ -139,11 +166,6 @@ def buildnml(case, caseroot, compname):
     else:
         usecase = ""
 
-    if ( (mask != "null") and (mask != "UNSET") ):
-       gridmask = "-mask %s" %mask
-    else:
-       gridmask = ""
-
     start_ymd = run_startdate.replace('-','')
 
     if ('-01-01' in run_startdate) or ('-09-01' in run_startdate):
@@ -151,6 +173,8 @@ def buildnml(case, caseroot, compname):
     else:
         ignore = "-ignore_ic_date"
 
+    tuning = "-lnd_tuning_mode %s "%lnd_tuning_mode
+    
     spinup = "-clm_accelerated_spinup %s "%clm_accelerated_spinup
     
     infile = os.path.join(clmconf, "namelist")
@@ -204,13 +228,13 @@ def buildnml(case, caseroot, compname):
         cmd = os.path.join(lnd_root,"bld","build-namelist")
 
         command = ("%s -cimeroot %s -infile %s -csmdata %s -inputdata %s %s -namelist \"&clm_inparm  start_ymd=%s %s/ \" "
-                   "%s %s -res %s -clm_start_type %s -envxml_dir %s -l_ncpl %s "
+                   "%s %s -res %s %s -clm_start_type %s -envxml_dir %s -l_ncpl %s "
                    "-lnd_frac %s -glc_nec %s -co2_ppmv %s -co2_type %s -config %s "
                    "%s %s %s"
                    %(cmd, _CIMEROOT, infile, din_loc_root, inputdata_file, ignore, start_ymd, clm_namelist_opts, 
-                     nomeg, usecase, lnd_grid, start_type, caseroot, lnd_ncpl, 
+                     nomeg, usecase, lnd_grid, clmusr, start_type, caseroot, lnd_ncpl, 
                      lndfrac_file, glc_nec, ccsm_co2_ppmv, clm_co2_type, config_cache_file, 
-                     clm_bldnml_opts, spinup, gridmask))
+                     clm_bldnml_opts, spinup, tuning))
 
         rc, out, err = run_cmd(command, from_dir=clmconf)
         expect(rc==0,"Command %s failed rc=%d\nout=%s\nerr=%s"%(cmd,rc,out,err))

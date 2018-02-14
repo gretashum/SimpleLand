@@ -15,7 +15,7 @@ module clm_initializeMod
   use clm_varctl      , only : use_lch4, use_cn, use_cndv, use_c13, use_c14, use_fates
   use clm_instur      , only : wt_lunit, urban_valid, wt_nat_patch, wt_cft, fert_cft, wt_glc_mec, topo_glc_mec
   use perf_mod        , only : t_startf, t_stopf
-  use readParamsMod   , only : readParameters
+  !use readParamsMod   , only : readParameters	! MML commenting out
   use ncdio_pio       , only : file_desc_t
   use GridcellType    , only : grc           ! instance     
   use LandunitType    , only : lun           ! instance          
@@ -46,7 +46,7 @@ contains
     use clm_varpar       , only: clm_varpar_init, natpft_lb, natpft_ub, cft_lb, cft_ub, maxpatch_glcmec
     use clm_varcon       , only: clm_varcon_init
     use landunit_varcon  , only: landunit_varcon_init, max_lunit
-    use clm_varctl       , only: fsurdat, fatmlndfrc, noland, version  
+    use clm_varctl       , only: fsurdat, fatmlndfrc, noland, version, mml_surdat  
     use pftconMod        , only: pftcon       
     use decompInitMod    , only: decompInit_lnd, decompInit_clumps, decompInit_glcp
     use domainMod        , only: domain_check, ldomain, domain_init
@@ -264,7 +264,7 @@ contains
     use accumulMod            , only : print_accum_fields 
     use clm_varpar            , only : nlevsno
     use clm_varcon            , only : spval
-    use clm_varctl            , only : finidat, finidat_interp_source, finidat_interp_dest, fsurdat
+    use clm_varctl            , only : finidat, finidat_interp_source, finidat_interp_dest, fsurdat, mml_surdat
     use clm_varctl            , only : use_century_decomp, single_column, scmlat, scmlon, use_cn, use_fates
     use clm_varctl            , only : use_crop, ndep_from_cpl
     use clm_varorb            , only : eccen, mvelpp, lambm0, obliqr
@@ -341,7 +341,9 @@ contains
     allocate(nutrient_competition_method, &
          source=create_nutrient_competition_method(bounds_proc))
 
-    call readParameters(nutrient_competition_method, photosyns_inst)
+! MML commenting out:
+! 
+    !call readParameters(nutrient_competition_method, photosyns_inst)
 
     ! ------------------------------------------------------------------------
     ! Initialize time manager
