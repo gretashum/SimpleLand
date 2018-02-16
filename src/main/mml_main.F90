@@ -629,7 +629,7 @@ contains
 	 							temp(begg:endg) * albedo_snf(begg:endg)
 	 
 	 ! for now, output one of these as albedo_fin just so there is a value:
-	 albedo_fin = alb_vis_dir
+	 !albedo_fin = alb_vis_dir
 	 diag2_1d = alb_vis_dir
 	 
 	 !diag3_1d = alb_vis_dif	! why is the albedo going to 1e22 in h0? try this one...
@@ -687,6 +687,9 @@ contains
      sw_abs(:) = sw_abs_dir(:,1) + sw_abs_dir(:,2) + &
      						sw_abs_dif(:,1) + sw_abs_dif(:,2)
      
+     
+     ! Make output albedo to be a combination of all 4 albedo streams:
+     albedo_fin = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) + alb_nir_dif * fsds_dif(:,2) )
      ! temporary fix:
      !lw_abs(begg:endg) = lwdn(begg:endg)
      !sw_abs(begg:endg) = 0.7*fsds(begg:endg)
