@@ -931,7 +931,8 @@ contains
     gsoi(:) = f0							! [W/m2]
      
     ! Check the three new variables I added for nans:
-    do g in begg,endg
+    do g = begg,endg
+    
     	if( isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
      		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_effective_res_grc is a nan' 
      	end if
