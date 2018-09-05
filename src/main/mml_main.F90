@@ -1524,6 +1524,11 @@ contains
      			( log((zref(g) - h_disp(g))/(z0m(g) + 10)) - &
      			  psi_m((zref(g) - h_disp(g))/obu(g)) + psi_m((z0m(g) + 10)/obu(g)) )
      	
+     	if( isnan(atm2lnd_inst%mml_out_uref10m_grc(g)) ) then
+    		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_out_uref10m_grc is a nan \n'
+    		call endrun(msg=errmsg(__FILE__, __LINE__))
+    	end if
+     	
      	! T2m
      	! Note: this calculation is for theta_2m, NOT T_2m... convert! 
      	! conversion: theta = T * (p/p0) ^ (R/cp)
@@ -1533,6 +1538,12 @@ contains
      	atm2lnd_inst%mml_out_tref2m_grc(g) = thref(g) - tstar(g) / vkc * &
      			( log((zref(g) - h_disp(g))/(z0h(g) + 2)) - &
      			  psi_h((zref(g) - h_disp(g))/obu(g)) + psi_h((z0h(g) + 2)/obu(g))  )
+     			  
+     	if( isnan(atm2lnd_inst%mml_out_tref2m_grc(g)) ) then
+    		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_out_tref2m_grc is a nan \n'
+    		call endrun(msg=errmsg(__FILE__, __LINE__))
+    	end if
+    	
      	! MML: check this again (T's vs Theta's in all the places), make sure I've got 
      	! them set right (is tref2m a temperature or a potential temperature? Does this eq'n 
      	! GIVE a temperature or a potential temperature? etc... check!)
@@ -1579,6 +1590,12 @@ contains
 		! this differes from thref version -> maybe I need to calculate a theta_srf using a reference pressure p0? 
 		! ( theta = T * (p0 / p ) ^ (R/cp) where R/cp ~ 0.286 for air... ... use a p0 = 1000 hPa = 100000 Pa 
 		theta_srf(g) = tsrf(g) * (100000._r8 / pref(g)	)**(0.286_r8)
+		if( isnan(theta_srf(g)) ) then
+    		write(iulog,*)subname, 'MML ERROR: theta_srf is a nan \n'
+    		call endrun(msg=errmsg(__FILE__, __LINE__))
+    	end if
+    	
+    	
 		! (using pref which is pbot, assuming psrf ~ pref)
 		
 !		diag2_1d(g) = tsrf(g) + tstar(g) / vkc * &		! aha! I bet that was the problem - I never defined theta_srf

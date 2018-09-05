@@ -1335,20 +1335,20 @@ contains
          avgflag='A', long_name='MML aerodynamic resistance for heat', &
          ptr_lnd=this%mml_lnd_rah_grc)
          
-    this%mml_lnd_res_grc(begg:endg) = spval
-    call hist_addfld1d (fname='MML_res_tot', units='s/m',  &
-         avgflag='A', long_name='MML lid resistance + aerodynamic resistance for heat (MML_evap_rs + MML_rah)', &
-         ptr_lnd=this%mml_lnd_res_grc)
-
-    this%mml_lnd_effective_res_grc(begg:endg) = spval
-    call hist_addfld1d (fname='MML_res_effective', units='s/m',  &
-         avgflag='A', long_name='MML effective surface resistance = 1/beta * (MML_evap_rs + MML_rah)', &
-         ptr_lnd=this%mml_lnd_effective_res_grc)
-
-    this%mml_lnd_beta_grc(begg:endg) = spval
-    call hist_addfld1d (fname='MML_beta', units='unitless',  &
-         avgflag='A', long_name='MML beta factor for resistance due to bucket emptiness (between 0 and 1)', &
-         ptr_lnd=this%mml_lnd_beta_grc)
+!    this%mml_lnd_res_grc(begg:endg) = spval
+!    call hist_addfld1d (fname='MML_res_tot', units='s/m',  &
+!         avgflag='A', long_name='MML lid resistance + aerodynamic resistance for heat (MML_evap_rs + MML_rah)', &
+!         ptr_lnd=this%mml_lnd_res_grc)
+!
+!    this%mml_lnd_effective_res_grc(begg:endg) = spval
+!    call hist_addfld1d (fname='MML_res_effective', units='s/m',  &
+!         avgflag='A', long_name='MML effective surface resistance = 1/beta * (MML_evap_rs + MML_rah)', &
+!         ptr_lnd=this%mml_lnd_effective_res_grc)
+!
+!    this%mml_lnd_beta_grc(begg:endg) = spval
+!    call hist_addfld1d (fname='MML_beta', units='unitless',  &
+!         avgflag='A', long_name='MML beta factor for resistance due to bucket emptiness (between 0 and 1)', &
+!         ptr_lnd=this%mml_lnd_beta_grc)
                      
     this%mml_lnd_z0m_grc(begg:endg) = spval
     call hist_addfld1d (fname='MML_z0m', units='m',  &
