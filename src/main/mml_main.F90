@@ -209,7 +209,7 @@ contains
    					Va(bounds%begg:bounds%endg)	, 	&
    					zeta(bounds%begg:bounds%endg)	
    	
-   	! For the lhflx limitation				
+   	! For the lhflx limitation		 (MML did I ever finish implementing this?)		
    	real(r8)	::	pbot(bounds%begg:bounds%endg)	,	&		! [Pa] midpoint of bottom layer (from atm)
    					p2(bounds%begg:bounds%endg)	,	&		! [Pa] top boundary of bottom layer (calculate using hybrid coords)
    					qbot(bounds%begg:bounds%endg)	,	&		! [kg/kg] specific humidity in lowest level of atm (check units?)
@@ -1610,6 +1610,8 @@ contains
      ! To be sure of what is actually being sent to the atmosphere, see subroutine lnd_export
      ! in /glade/p/work/mlague/cesm_source/cesm1_5_beta05_mml_land/components/clm/src/cpl/lnd_import_export.F90 
      
+      
+     
      ! lnd -> atm
      lnd2atm_inst%t_rad_grc = tsrf									! radiative temperature (Kelvin)
      lnd2atm_inst%t_ref2m_grc = atm2lnd_inst%mml_out_tref2m_grc 	! 2m surface air temperature (Kelvin)
@@ -1679,6 +1681,98 @@ contains
      !write(iulog,*)subname, 'MML Map some of my surface variables onto CLM fields for easy running of diagnostics'
      ! (currently doing this in post-processing, just making a new .nc with the CLM-named vars made out of my vars)
      ! Sensible Heat, Latent Heat, Surface T, 2m T, albedo, evaporation rate (kg/m2/s)
+     
+     ! MML 2018.09.05 Manually check each of these for nans:
+     do g = begg,endg
+     	
+     	if( isnan(lnd2atm_inst%t_rad_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_rad_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%t_ref2m_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_ref2m_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%q_ref2m_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%q_ref2m_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%u_ref10m_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%u_ref10m_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%h2osno_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%h2osno_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%albd_grc(g,1))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 1 is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%albd_grc(g,2))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 2 is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%albi_grc(g,1 ))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 1 is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%albi_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 2 is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%taux_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%taux_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%tauy_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%tauy_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%eflx_lh_tot_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lh_tot_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%eflx_sh_tot_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_sh_tot_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%eflx_lwrad_out_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lwrad_out_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%qflx_evap_tot_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%qflx_evap_tot_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%fsa_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%fsa_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%net_carbon_exchange_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%net_carbon_exchange_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%nem_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%nem_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%ram1_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%flxdst_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%diag1_1d(g))) then
+     		write(iulog,*)subname, 'MML ERROR: diag1_1d is a nan', &
+     	end if
+     	
+     	if( isnan(lnd2atm_inst%diag2_1d(g))) then
+     		write(iulog,*)subname, 'MML ERROR: diag2_1d is a nan', &
+     	end if
+     end do
      
      
      
