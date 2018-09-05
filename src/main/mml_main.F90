@@ -927,7 +927,7 @@ contains
 		atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !5.0 !beta(:)
 		atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(g) / beta(g) !7.0
 		if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
-			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.0
+			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01
 		end if
 		if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
 			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
