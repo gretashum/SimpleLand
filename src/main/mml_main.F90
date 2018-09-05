@@ -767,7 +767,7 @@ contains
      res(:)		=  	(evaprs + rah)						! [s/m]
      
      ! save out res for the netcdf 
-     atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
+     !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
      
      ! GBB: See what GFDL does for its evaporative resistance; should be a function
 	 ! of stomatal conductance and LAI
@@ -917,10 +917,10 @@ contains
 	end where
 	
 	! save beta out for netcdf
-	atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
+	!atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
 	
 	! and 1/beta * (rs + rah)  1/beta * res , the effective resistnace
-	atm2lnd_inst%mml_lnd_effective_res_grc(:) = res(:) / beta(:)
+	!atm2lnd_inst%mml_lnd_effective_res_grc(:) = res(:) / beta(:)
 	
 	! Net flux of energy into soil [W/m2] and temperature derivative [W/m2/K] from the 
 	! surface energy imbalance given other fluxes:
@@ -933,17 +933,17 @@ contains
     ! Check the three new variables I added for nans:
     do g = begg,endg
     
-    	if( isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_effective_res_grc is a nan' 
-     	end if
+    	!if( isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_effective_res_grc is a nan' 
+     	!end if
      	
-     	if( isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_beta_grc is a nan' 
-     	end if
+     	!if( isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_beta_grc is a nan' 
+     	!end if
      	
-     	if( isnan(atm2lnd_inst%mml_lnd_res_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_res_grc is a nan' 
-     	end if
+     	!if( isnan(atm2lnd_inst%mml_lnd_res_grc(g))) then
+     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_res_grc is a nan' 
+     	!end if
      	
     end do
     
