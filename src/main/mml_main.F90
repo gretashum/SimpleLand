@@ -1761,7 +1761,7 @@ contains
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan' 
      	end if
      	
-     	if( isnan(lnd2atm_inst%flxdst_grc(g,:))) then
+     	if( isnan(lnd2atm_inst%flxdst_grc(g,1))) then
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan' 
      	end if
      	
