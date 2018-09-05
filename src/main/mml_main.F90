@@ -769,7 +769,10 @@ contains
      ! save out res for the netcdf 
      !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
      do g = begg,endg
-		atm2lnd_inst%mml_lnd_res_grc(g) = 3.0 
+		atm2lnd_inst%mml_lnd_res_grc(g) = res(g)
+		if( isnan(atm2lnd_inst%mml_lnd_res_grc(g)) ) then
+			atm2lnd_inst%mml_lnd_res_grc(g) = 10000.
+		end if 
 	end do
      
      ! GBB: See what GFDL does for its evaporative resistance; should be a function
@@ -921,8 +924,14 @@ contains
 	
 	! save beta out for netcdf
 	do g = begg,endg
-		atm2lnd_inst%mml_lnd_beta_grc(g) = 5.0 !beta(:)
-		atm2lnd_inst%mml_lnd_effective_res_grc(g) = 7.0
+		atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !5.0 !beta(:)
+		atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(:g) / beta(g) !7.0
+		if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.0
+		end if
+		if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
+		end if
 	end do
 	!atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
 	
