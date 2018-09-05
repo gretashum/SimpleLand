@@ -1686,91 +1686,91 @@ contains
      do g = begg,endg
      	
      	if( isnan(lnd2atm_inst%t_rad_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_rad_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_rad_grc is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%t_ref2m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_ref2m_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_ref2m_grc is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%q_ref2m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%q_ref2m_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%q_ref2m_grc is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%u_ref10m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%u_ref10m_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%u_ref10m_grc is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%h2osno_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%h2osno_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%h2osno_grc is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%albd_grc(g,1))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 1 is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 1 is a nan'
      	end if
      	
      	if( isnan(lnd2atm_inst%albd_grc(g,2))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 2 is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 2 is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%albi_grc(g,1 ))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 1 is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 1 is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%albi_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 2 is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 2 is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%taux_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%taux_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%taux_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%tauy_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%tauy_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%tauy_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%eflx_lh_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lh_tot_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lh_tot_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%eflx_sh_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_sh_tot_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_sh_tot_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%eflx_lwrad_out_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lwrad_out_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lwrad_out_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%qflx_evap_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%qflx_evap_tot_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%qflx_evap_tot_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%fsa_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%fsa_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%fsa_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%net_carbon_exchange_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%net_carbon_exchange_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%net_carbon_exchange_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%nem_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%nem_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%nem_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%ram1_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%flxdst_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%diag1_1d(g))) then
-     		write(iulog,*)subname, 'MML ERROR: diag1_1d is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: diag1_1d is a nan' 
      	end if
      	
      	if( isnan(lnd2atm_inst%diag2_1d(g))) then
-     		write(iulog,*)subname, 'MML ERROR: diag2_1d is a nan', &
+     		write(iulog,*)subname, 'MML ERROR: diag2_1d is a nan' 
      	end if
      end do
      
