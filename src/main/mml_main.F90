@@ -1717,7 +1717,7 @@ contains
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 1 is a nan' 
      	end if
      	
-     	if( isnan(lnd2atm_inst%albi_grc(g))) then
+     	if( isnan(lnd2atm_inst%albi_grc(g),2)) then
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 2 is a nan' 
      	end if
      	
@@ -1761,15 +1761,15 @@ contains
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan' 
      	end if
      	
-     	if( isnan(lnd2atm_inst%flxdst_grc(g))) then
+     	if( isnan(lnd2atm_inst%flxdst_grc(g,:))) then
      		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan' 
      	end if
      	
-     	if( isnan(lnd2atm_inst%diag1_1d(g))) then
+     	if( isnan(diag1_1d(g))) then
      		write(iulog,*)subname, 'MML ERROR: diag1_1d is a nan' 
      	end if
      	
-     	if( isnan(lnd2atm_inst%diag2_1d(g))) then
+     	if( isnan(diag2_1d(g))) then
      		write(iulog,*)subname, 'MML ERROR: diag2_1d is a nan' 
      	end if
      end do
