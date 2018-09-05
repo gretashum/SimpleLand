@@ -768,6 +768,9 @@ contains
      
      ! save out res for the netcdf 
      !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
+     do g = begg,endg
+		atm2lnd_inst%mml_lnd_res_grc(g) = 3.0 
+	end do
      
      ! GBB: See what GFDL does for its evaporative resistance; should be a function
 	 ! of stomatal conductance and LAI
@@ -917,6 +920,10 @@ contains
 	end where
 	
 	! save beta out for netcdf
+	do g = begg,endg
+		atm2lnd_inst%mml_lnd_beta_grc(g) = 5.0 !beta(:)
+		atm2lnd_inst%mml_lnd_effective_res_grc(g) = 7.0
+	end do
 	!atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
 	
 	! and 1/beta * (rs + rah)  1/beta * res , the effective resistnace
@@ -930,22 +937,7 @@ contains
     ! lets temporarily save this value out as gsoi (not the real gsoi, but the right "family"
     gsoi(:) = f0							! [W/m2]
      
-    ! Check the three new variables I added for nans:
-    do g = begg,endg
-    
-    	!if( isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
-     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_effective_res_grc is a nan' 
-     	!end if
-     	
-     	!if( isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
-     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_beta_grc is a nan' 
-     	!end if
-     	
-     	!if( isnan(atm2lnd_inst%mml_lnd_res_grc(g))) then
-     	!	write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_res_grc is a nan' 
-     	!end if
-     	
-    end do
+
     
      
 	! -------------------------------------------------------------
@@ -1524,10 +1516,7 @@ contains
      			( log((zref(g) - h_disp(g))/(z0m(g) + 10)) - &
      			  psi_m((zref(g) - h_disp(g))/obu(g)) + psi_m((z0m(g) + 10)/obu(g)) )
      	
-     	if( isnan(atm2lnd_inst%mml_out_uref10m_grc(g)) ) then
-    		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_out_uref10m_grc is a nan \n'
-    		call endrun(msg=errmsg(__FILE__, __LINE__))
-    	end if
+
      	
      	! T2m
      	! Note: this calculation is for theta_2m, NOT T_2m... convert! 
@@ -1538,11 +1527,7 @@ contains
      	atm2lnd_inst%mml_out_tref2m_grc(g) = thref(g) - tstar(g) / vkc * &
      			( log((zref(g) - h_disp(g))/(z0h(g) + 2)) - &
      			  psi_h((zref(g) - h_disp(g))/obu(g)) + psi_h((z0h(g) + 2)/obu(g))  )
-     			  
-     	if( isnan(atm2lnd_inst%mml_out_tref2m_grc(g)) ) then
-    		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_out_tref2m_grc is a nan \n'
-    		call endrun(msg=errmsg(__FILE__, __LINE__))
-    	end if
+
     	
      	! MML: check this again (T's vs Theta's in all the places), make sure I've got 
      	! them set right (is tref2m a temperature or a potential temperature? Does this eq'n 
@@ -1590,10 +1575,7 @@ contains
 		! this differes from thref version -> maybe I need to calculate a theta_srf using a reference pressure p0? 
 		! ( theta = T * (p0 / p ) ^ (R/cp) where R/cp ~ 0.286 for air... ... use a p0 = 1000 hPa = 100000 Pa 
 		theta_srf(g) = tsrf(g) * (100000._r8 / pref(g)	)**(0.286_r8)
-		if( isnan(theta_srf(g)) ) then
-    		write(iulog,*)subname, 'MML ERROR: theta_srf is a nan \n'
-    		call endrun(msg=errmsg(__FILE__, __LINE__))
-    	end if
+
     	
     	
 		! (using pref which is pbot, assuming psrf ~ pref)
@@ -1716,97 +1698,7 @@ contains
      ! (currently doing this in post-processing, just making a new .nc with the CLM-named vars made out of my vars)
      ! Sensible Heat, Latent Heat, Surface T, 2m T, albedo, evaporation rate (kg/m2/s)
      
-     ! MML 2018.09.05 Manually check each of these for nans:
-     do g = begg,endg
-     	
-     	if( isnan(lnd2atm_inst%t_rad_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_rad_grc is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%t_ref2m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%t_ref2m_grc is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%q_ref2m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%q_ref2m_grc is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%u_ref10m_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%u_ref10m_grc is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%h2osno_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%h2osno_grc is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%albd_grc(g,1))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 1 is a nan'
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%albd_grc(g,2))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albd_grc 2 is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%albi_grc(g,1 ))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 1 is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%albi_grc(g,2))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%albi_grc 2 is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%taux_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%taux_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%tauy_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%tauy_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%eflx_lh_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lh_tot_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%eflx_sh_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_sh_tot_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%eflx_lwrad_out_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%eflx_lwrad_out_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%qflx_evap_tot_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%qflx_evap_tot_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%fsa_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%fsa_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%net_carbon_exchange_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%net_carbon_exchange_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%nem_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%nem_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%ram1_grc(g))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%ram1_grc is a nan' 
-     	end if
-     	
-     	if( isnan(lnd2atm_inst%flxdst_grc(g,1))) then
-     		write(iulog,*)subname, 'MML ERROR: lnd2atm_inst%flxdst_grc is a nan' 
-     	end if
-     	
-     	if( isnan(diag1_1d(g))) then
-     		write(iulog,*)subname, 'MML ERROR: diag1_1d is a nan' 
-     	end if
-     	
-     	if( isnan(diag2_1d(g))) then
-     		write(iulog,*)subname, 'MML ERROR: diag2_1d is a nan' 
-     	end if
-     end do
+
      
      
      
