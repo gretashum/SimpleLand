@@ -930,6 +930,22 @@ contains
     ! lets temporarily save this value out as gsoi (not the real gsoi, but the right "family"
     gsoi(:) = f0							! [W/m2]
      
+    ! Check the three new variables I added for nans:
+    do g in begg,endg
+    	if( isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_effective_res_grc is a nan' 
+     	end if
+     	
+     	if( isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_beta_grc is a nan' 
+     	end if
+     	
+     	if( isnan(atm2lnd_inst%mml_lnd_res_grc(g))) then
+     		write(iulog,*)subname, 'MML ERROR: atm2lnd_inst%mml_lnd_res_grc is a nan' 
+     	end if
+     	
+    end do
+    
      
 	! -------------------------------------------------------------
 	! Initial pass at soil temperatures
