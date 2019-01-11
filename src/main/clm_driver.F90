@@ -16,6 +16,7 @@ module clm_driver
   use clm_time_manager       , only : get_nstep, is_beg_curr_day
   use clm_time_manager       , only : get_prev_date, is_first_step
   use clm_varpar             , only : nlevsno, nlevgrnd
+  use clm_varorb             , only : obliqr
   use spmdMod                , only : masterproc, mpicom
   use decompMod              , only : get_proc_clumps, get_clump_bounds, get_proc_bounds, bounds_type
   use filterMod              , only : filter, filter_inactive_and_active
@@ -409,7 +410,7 @@ contains
 !
 !       call t_startf('drvinit')
 !
-!       call UpdateDaylength(bounds_clump, declin)
+!       call UpdateDaylength(bounds_clump, declin=declin, obliquity=obliqr)
 !
 !       ! Initialze variables needed for new driver time step 
 !       call clm_drv_init(bounds_clump, &
@@ -1257,63 +1258,63 @@ contains
     !-----------------------------------------------------------------------
 
 !====== MML turning off CLM ========
-!    associate(                                                             & 
-!         snl                => col%snl                                   , & ! Input:  [integer  (:)   ]  number of snow layers                    
-!        
-!         h2osno             => waterstate_inst%h2osno_col                , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                     
-!         h2osoi_ice         => waterstate_inst%h2osoi_ice_col            , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)                      
-!         h2osoi_liq         => waterstate_inst%h2osoi_liq_col            , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                  
-!         h2osno_old         => waterstate_inst%h2osno_old_col            , & ! Output: [real(r8) (:)   ]  snow water (mm H2O) at previous time step
-!         frac_iceold        => waterstate_inst%frac_iceold_col           , & ! Output: [real(r8) (:,:) ]  fraction of ice relative to the tot water
-!
-!         elai               => canopystate_inst%elai_patch               , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow    
-!         esai               => canopystate_inst%esai_patch               , & ! Input:  [real(r8) (:)   ]  one-sided stem area index with burying by snow    
-!         frac_veg_nosno     => canopystate_inst%frac_veg_nosno_patch     , & ! Output: [integer  (:)   ]  fraction of vegetation not covered by snow (0 OR 1) [-]
-!         frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch , & ! Output: [integer  (:)   ]  fraction of vegetation not covered by snow (0 OR 1) [-]
-!
-!         eflx_bot           => energyflux_inst%eflx_bot_col              , & ! Output: [real(r8) (:)   ]  heat flux from beneath soil/ice column (W/m**2)
-!
-!         cisun_z            => photosyns_inst%cisun_z_patch              , & ! Output: [real(r8) (:)   ]  intracellular sunlit leaf CO2 (Pa)
-!         cisha_z            => photosyns_inst%cisha_z_patch                & ! Output: [real(r8) (:)   ]  intracellular shaded leaf CO2 (Pa)
-!         )
-!
-!      ! Initialize intracellular CO2 (Pa) parameters each timestep for use in VOCEmission
-!      do p = bounds%begp,bounds%endp
-!         cisun_z(p,:) = -999._r8
-!         cisha_z(p,:) = -999._r8
-!      end do
-!
-!      do c = bounds%begc,bounds%endc
-!         ! Save snow mass at previous time step
-!         h2osno_old(c) = h2osno(c)
-!
-!         ! Reset flux from beneath soil/ice column 
-!         eflx_bot(c)  = 0._r8
-!      end do
-!
-!      ! Initialize fraction of vegetation not covered by snow 
-!
-!      do p = bounds%begp,bounds%endp
-!         if (patch%active(p)) then
-!            frac_veg_nosno(p) = frac_veg_nosno_alb(p)
-!         else
-!            frac_veg_nosno(p) = 0._r8
-!         end if
-!      end do
-!
-!      ! Initialize set of previous time-step variables
-!      ! Ice fraction of snow at previous time step
-!      
-!      do j = -nlevsno+1,0
-!         do f = 1, num_nolakec
-!            c = filter_nolakec(f)
-!            if (j >= snl(c) + 1) then
-!               frac_iceold(c,j) = h2osoi_ice(c,j)/(h2osoi_liq(c,j)+h2osoi_ice(c,j))
-!            end if
-!         end do
-!      end do
-!
-!    end associate
+!     associate(                                                             & 
+!          snl                => col%snl                                   , & ! Input:  [integer  (:)   ]  number of snow layers                    
+!         
+!          h2osno             => waterstate_inst%h2osno_col                , & ! Input:  [real(r8) (:)   ]  snow water (mm H2O)                     
+!          h2osoi_ice         => waterstate_inst%h2osoi_ice_col            , & ! Input:  [real(r8) (:,:) ]  ice lens (kg/m2)                      
+!          h2osoi_liq         => waterstate_inst%h2osoi_liq_col            , & ! Input:  [real(r8) (:,:) ]  liquid water (kg/m2)                  
+!          h2osno_old         => waterstate_inst%h2osno_old_col            , & ! Output: [real(r8) (:)   ]  snow water (mm H2O) at previous time step
+!          frac_iceold        => waterstate_inst%frac_iceold_col           , & ! Output: [real(r8) (:,:) ]  fraction of ice relative to the tot water
+! 
+!          elai               => canopystate_inst%elai_patch               , & ! Input:  [real(r8) (:)   ]  one-sided leaf area index with burying by snow    
+!          esai               => canopystate_inst%esai_patch               , & ! Input:  [real(r8) (:)   ]  one-sided stem area index with burying by snow    
+!          frac_veg_nosno     => canopystate_inst%frac_veg_nosno_patch     , & ! Output: [integer  (:)   ]  fraction of vegetation not covered by snow (0 OR 1) [-]
+!          frac_veg_nosno_alb => canopystate_inst%frac_veg_nosno_alb_patch , & ! Output: [integer  (:)   ]  fraction of vegetation not covered by snow (0 OR 1) [-]
+! 
+!          eflx_bot           => energyflux_inst%eflx_bot_col              , & ! Output: [real(r8) (:)   ]  heat flux from beneath soil/ice column (W/m**2)
+! 
+!          cisun_z            => photosyns_inst%cisun_z_patch              , & ! Output: [real(r8) (:)   ]  intracellular sunlit leaf CO2 (Pa)
+!          cisha_z            => photosyns_inst%cisha_z_patch                & ! Output: [real(r8) (:)   ]  intracellular shaded leaf CO2 (Pa)
+!          )
+! 
+!       ! Initialize intracellular CO2 (Pa) parameters each timestep for use in VOCEmission
+!       do p = bounds%begp,bounds%endp
+!          cisun_z(p,:) = -999._r8
+!          cisha_z(p,:) = -999._r8
+!       end do
+! 
+!       do c = bounds%begc,bounds%endc
+!          ! Save snow mass at previous time step
+!          h2osno_old(c) = h2osno(c)
+! 
+!          ! Reset flux from beneath soil/ice column 
+!          eflx_bot(c)  = 0._r8
+!       end do
+! 
+!       ! Initialize fraction of vegetation not covered by snow 
+! 
+!       do p = bounds%begp,bounds%endp
+!          if (patch%active(p)) then
+!             frac_veg_nosno(p) = frac_veg_nosno_alb(p)
+!          else
+!             frac_veg_nosno(p) = 0._r8
+!          end if
+!       end do
+! 
+!       ! Initialize set of previous time-step variables
+!       ! Ice fraction of snow at previous time step
+!       
+!       do j = -nlevsno+1,0
+!          do f = 1, num_nolakec
+!             c = filter_nolakec(f)
+!             if (j >= snl(c) + 1) then
+!                frac_iceold(c,j) = h2osoi_ice(c,j)/(h2osoi_liq(c,j)+h2osoi_ice(c,j))
+!             end if
+!          end do
+!       end do
+! 
+!     end associate
 
   end subroutine clm_drv_init
   

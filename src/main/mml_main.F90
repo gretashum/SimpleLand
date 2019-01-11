@@ -163,6 +163,7 @@ contains
    					alb_vis_dir(bounds%begg:bounds%endg)	, 	&	! albedo, visible, direct, from .nc file
    					alb_nir_dif(bounds%begg:bounds%endg)	, 	&	! albedo, near IR, diffuse, from .nc file
    					alb_vis_dif(bounds%begg:bounds%endg)	, 	&	! albedo, visible, diffuse, from .nc file
+   					alb_tot(bounds%begg:bounds%endg)	, 	&
    					! this needs to come from the netcdf file, and I need to remember it over multiple time steps, so 
    					! make it a part of atm2lnd_type !!!
    					!emiss(bounds%begg:bounds%endg)	, 	&			! emissivity, from .nc file
@@ -592,8 +593,8 @@ contains
      
      do g = begg, endg
   	 
-  	 	if ( snow(g) < 0 ) then
-  	 		temp(g) = 0
+  	 	if ( snow(g) < 0._r8 ) then
+  	 		temp(g) = 0._r8
   	 		write(iulog,*)'warning: snow<0, setting snowmasking factor to zero. (snow(g) = ',snow(g),')'
   	 	else
   	 		temp(g) = snow(g) / ( snow(g) + snowmask(g) )
@@ -601,11 +602,11 @@ contains
   	 	
   	 	diag3_1d(g) = temp(g)
   	 	
-  	  	if ( temp(g) < 0 ) then
+  	  	if ( temp(g) < 0._r8 ) then
             write(iulog,*)'Error: snow masking factor < 0 (should be between 0 and 1) \n ', &
             				'Instead, snowmasking factor = ',temp(g)
             call endrun(msg=errmsg(__FILE__, __LINE__))
-        elseif ( temp(g) > 1 ) then
+        elseif ( temp(g) > 1._r8 ) then
            write(iulog,*)'Error: snow masking factor > 1 (should be between 0 and 1)  \n ', &
             				'Instead, snowmasking factor = ',temp(g)
             call endrun(msg=errmsg(__FILE__, __LINE__))
@@ -679,21 +680,25 @@ contains
      						
      						
      ! should be able to write like:
+     fsr(:) = 9999.0_r8
 	 fsr(:)  = alb_vis_dir * fsds_dir(:,1) + &
      					alb_nir_dir * fsds_dir(:,2) + &
      		 			alb_vis_dif * fsds_dif(:,1) + &
      		 			alb_nir_dif * fsds_dif(:,2)
      		 
+     sw_abs(:) = 999.0_r8
      sw_abs(:) = sw_abs_dir(:,1) + sw_abs_dir(:,2) + &
      						sw_abs_dif(:,1) + sw_abs_dif(:,2)
      
      
      ! Make output albedo to be a combination of all 4 albedo streams:
-     albedo_fin(:) = 1.0e36_r8
-     albedo_fin(:) = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
+     alb_tot(:) = 0.0_r8
+     alb_tot(:) = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
      ! temporary fix:
      !lw_abs(begg:endg) = lwdn(begg:endg)
      !sw_abs(begg:endg) = 0.7*fsds(begg:endg)
+     
+     atm2lnd_inst%mml_lnd_alb_grc(:) = 888888._r8
      
      
      radforc(begg:endg) = lw_abs(begg:endg) + sw_abs(begg:endg)
@@ -897,8 +902,8 @@ contains
 	beta(:) = 1.0_r8
 
 	! similarly initialize mml_lnd_effective_res_grc and mml_lnd_res_grc to avoid nans
-	atm2lnd_inst%mml_lnd_effective_res_grc = 9999.99_r8
-	atm2lnd_inst%mml_lnd_res_grc = 9999.99_r8 
+	atm2lnd_inst%mml_lnd_effective_res_grc(:) = 9999.99_r8
+	atm2lnd_inst%mml_lnd_res_grc(:) = 9999.99_r8 
 	
 	where ( snow <= 0 )
 		beta(:) = min ( water/(.75 * bucket_cap) , 1.0_r8 )		! scaling factor [unitless]
@@ -1731,6 +1736,7 @@ contains
      !lnd2atm_inst%
      !lnd2atm_inst%
      
+
      
      ! Save the top-layer soil_cv and soil_tk to the temporary diag fields, to make sure the glacier mask is working 
      diag1_1d(begg:endg) = soil_tk(begg:endg,1)
@@ -1750,6 +1756,403 @@ contains
      ! define them up top as real(r8)	:: myvar(begg:endg)	(assuming I pass in begg and endg, else use bounds%begg)
      ! rather than real, allocatable, (:) then allocate with (begg:endg)
   
+
+
+	!--------------------------------------------------------------
+	! MML 20190110 Check if ANY of the variables have ANY nans?
+	!--------------------------------------------------------------
+	
+	
+	! Check if any output sent to the coupler is NaN
+	! from ./cpl/lnd_import_export.F90
+	!        if ( any(isnan(l2x(:,i))) )then
+	!           write(iulog,*) '# of NaNs = ', count(isnan(l2x(:,i)))
+	!           write(iulog,*) 'Which are NaNs = ', isnan(l2x(:,i))
+	!           do k = 1, size(l2x(:,i))
+	!              if ( isnan(l2x(k,i)) )then
+	!                 call shr_string_listGetName( seq_flds_l2x_fields, k, fname )
+	!                 write(iulog,*) trim(fname)
+	!              end if
+	!           end do
+	!           write(iulog,*) 'gridcell index = ', g
+	!           call endrun( sub//' ERROR: One or more of the output from CLM to the coupler are NaN ' )
+	!        end if
+	!
+	
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsds_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsds_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsdsnd_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsdsnd_grc'
+	end if
+	
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsdsvd_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsdsvd_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsdsni_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsdsni_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsds_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsds_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_fsdsvi_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsdsvi_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_lwdn_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_lwdn_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_zref_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_zref_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_tbot_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_tbot_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_thref_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_fsds_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_qbot_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_qbot_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_uref_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_uref_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_eref_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_eref_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_pbot_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_pbot_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_psrf_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_psrf_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_rhomol_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_rhomol_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_rhoair_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_rhoair_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_cp_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_cp_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_pco2(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_pco2'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_prec_liq_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_prec_liq_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_atm_prec_frz_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_atm_prec_frz_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_ts_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_ts_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_qs_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_qs_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_qa_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_qa_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_swabs_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_swabs_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsr_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsr_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsrnd_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsrnd_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsrni_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsrni_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsrvd_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsrvd_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsrvi_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsrvi_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_lwup_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_lwup_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsns_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsns_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_flns_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_flns_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_shflx_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_shflx_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_lhflx_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_lhflx_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_gsoi_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_gsoi_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_gsnow_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_gsnow_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_evap_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_evap_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_ustar_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_ustar_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_tstar_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_tstar_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_qstar_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_qstar_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_tvstar_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_tvstar_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_obu_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_obu_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_ram_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_ram_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_rah_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_rah_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_res_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_res_grc'
+	end if
+	
+	if ( any(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(:)))) then
+	! 	write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_effective_res_grc'
+	end if
+	
+	if ( any(isnan(atm2lnd_inst%mml_lnd_beta_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_beta_grc'
+	end if
+	
+	if ( any(isnan(atm2lnd_inst%mml_lnd_disp_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_disp_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_z0m_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_z0m_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_z0h_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_z0h_grc'
+	end if
+
+	if ( any(isnan(fsr(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'fsr'
+	end if
+	
+	if ( any(isnan(sw_abs(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'sw_abs'
+	end if
+	
+	if ( any(isnan(atm2lnd_inst%mml_lnd_alb_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_alb_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_snowmelt(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_snowmelt'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_out_taux(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_out_taux'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_out_tauy(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_out_tauy'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_ts_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_ts_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_qs_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_qs_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_qa_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_qa_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_lnd_fsr_grc(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_lnd_fsr_grc'
+	end if
+
+	if ( any(isnan(atm2lnd_inst%mml_out_tauy(:)))) then
+! 		write(iulog,*) '# of NaNs = ', count(isnan(l2x(:)))
+! 		write(iulog,*) 'Which are NaNs = ', isnan(l2x(:))
+		write(iulog,*) 'mml_out_tauy'
+	end if
+
+
+
 
    end associate
    

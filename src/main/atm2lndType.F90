@@ -1010,6 +1010,12 @@ contains
          avgflag='A', long_name='atmospheric longwave radiation (downscaled to columns in glacier regions)', &
          ptr_col=this%forc_lwrad_downscaled_col, default='inactive')
 
+    call hist_addfld1d (fname='FLDS_ICE', units='W/m^2',  &
+         avgflag='A', &
+         long_name='atmospheric longwave radiation (downscaled to columns in glacier regions) (ice landunits only)', &
+         ptr_col=this%forc_lwrad_downscaled_col, l2g_scale_type='ice', &
+         default='inactive')
+
     this%forc_rain_not_downscaled_grc(begg:endg) = spval
     call hist_addfld1d (fname='RAIN_FROM_ATM', units='mm/s',  &
          avgflag='A', long_name='atmospheric rain received from atmosphere (pre-repartitioning)', &
@@ -1028,10 +1034,22 @@ contains
          avgflag='A', long_name='atmospheric rain, after rain/snow repartitioning based on temperature', &
          ptr_col=this%forc_rain_downscaled_col, default='inactive')
 
+    call hist_addfld1d (fname='RAIN_ICE', units='mm/s',  &
+         avgflag='A', &
+         long_name='atmospheric rain, after rain/snow repartitioning based on temperature (ice landunits only)', &
+         ptr_col=this%forc_rain_downscaled_col, l2g_scale_type='ice', &
+         default='inactive')
+
     this%forc_snow_downscaled_col(begc:endc) = spval
     call hist_addfld1d (fname='SNOW', units='mm/s',  &
          avgflag='A', long_name='atmospheric snow, after rain/snow repartitioning based on temperature', &
          ptr_col=this%forc_snow_downscaled_col)
+
+    call hist_addfld1d (fname='SNOW_ICE', units='mm/s',  &
+         avgflag='A', &
+         long_name='atmospheric snow, after rain/snow repartitioning based on temperature (ice landunits only)', &
+         ptr_col=this%forc_snow_downscaled_col, l2g_scale_type='ice', &
+         default='inactive')
 
     this%forc_th_downscaled_col(begc:endc) = spval
     call hist_addfld1d (fname='THBOT', units='K',  &
@@ -1763,7 +1781,7 @@ contains
 	!this%mml_nc_soil_levels_grc(:,:)  
 	!this%mml_nc_soil_type_grc(:)	
 																		  ! for simplicity, set all layers and all grid cells equal. For flexibility, program this way. 
-	this%mml_nc_roughness_grc(:)   = 10._r8
+	this%mml_nc_roughness_grc(:)   = 1._r8
 	this%mml_nc_emiss_grc(:)  = 1._r8
 	this%mml_nc_glcmask_grc(:)   = 0.0_r8	! no glc mask
 	this%mml_nc_dust_grc(:,:)		= 0.0_r8	! no dust
@@ -1781,8 +1799,11 @@ contains
 	! (except vars I initialized on purpose above :p )
 	
 	! land flux data
-	!this%mml_lnd_ts_grc     (:)   = ival
-	!this%mml_lnd_qs_grc     (:)   = ival
+	
+	! these 2 were commented...
+! 	this%mml_lnd_ts_grc     (:)   = 300.0_r8! 
+! 	this%mml_lnd_qs_grc     (:)   = 0.1_r8
+	
 	this%mml_lnd_qa_grc     (:)   = ival
 	this%mml_lnd_swabs_grc  (:)   = ival
 	this%mml_lnd_fsr_grc   (:)   = ival
@@ -1810,44 +1831,46 @@ contains
 	this%mml_lnd_flns_grc    (:)   = ival
 	this%mml_lnd_snowmelt    (:)   = 0.0_r8
 	
-	! soil data
-	!this%mml_soil_t_grc      (:,:)   = ival 
-	!this%mml_soil_dz_grc     (:,:)   = ival 
-	!this%mml_soil_zh_grc     (:,:)   = ival 
-	this%mml_soil_tk_grc     (:,:)   = ival 
-	this%mml_soil_tk_1d_grc     (:)   = ival 
-	this%mml_soil_tkh_grc     (:,:)   = ival 
-	this%mml_soil_dtsoi_grc     (:,:)   = ival 
-	this%mml_soil_cv_grc     (:,:)   = ival 
-	this%mml_soil_cv_1d_grc     (:)   = ival 
-	this%mml_glc_tk_1d_grc     (:)   = ival
-	this%mml_glc_cv_1d_grc     (:)   = ival
-	!this%mml_soil_water_grc  (:)   	 = ival
-	!this%mml_soil_snow_grc   (:)   	 = ival
-	!this%mml_soil_runoff_grc (:)   	 = ival
+	! soil data 
+	this%mml_soil_tk_grc     (:,:)   = 1.5_r8 
+	this%mml_soil_tk_1d_grc     (:)   = 1.5_r8  
+	this%mml_soil_tkh_grc     (:,:)   = 1.5_r8  
+	this%mml_soil_dtsoi_grc     (:,:)   = 0.0_r8 
+	this%mml_soil_cv_grc     (:,:)   = 2.0e6_r8 
+	this%mml_soil_cv_1d_grc     (:)   = 2.0e6_r8  
+	this%mml_glc_tk_1d_grc     (:)   = 2.4_r8
+	this%mml_glc_cv_1d_grc     (:)   = 1.9e6_r8 
+	! these were commented:
+! 	this%mml_soil_t_grc      (:,:)   = 300.0_r8 
+! 	this%mml_soil_dz_grc     (:,:)   = 0.0_r8
+! 	this%mml_soil_zh_grc     (:,:)   = 1.0_r8
+! 	this%mml_soil_water_grc  (:)   	 = 1.0_r8
+! 	this%mml_soil_snow_grc   (:)   	 = 1.0_r8
+! 	this%mml_soil_runoff_grc (:)   	 = 0.0_r8
   	
-  	this%mml_out_tref2m_grc	 (:)		= ival
-	this%mml_out_qref2m_grc	 (:)		= ival
-	this%mml_out_uref10m_grc (:)		= ival
-	this%mml_out_taux (:)		= ival
-	this%mml_out_tauy (:)		= ival
+  	this%mml_out_tref2m_grc	 (:)		= 300.0_r8
+	this%mml_out_qref2m_grc	 (:)		= 0.1_r8
+	this%mml_out_uref10m_grc (:)		= 0.1_r8
+	this%mml_out_taux (:)		= 0.1_r8
+	this%mml_out_tauy (:)		= 0.1_r8
 	
 	! 300 kg/m3, (0 in top layer) but need in kg/m2 units, ie x dz(:,i)
 	! so for now I'll manually prescribe the initial values, but this is 
 	! NOT a robust way of doing things!!!
 	! we'll put it all in liquid, for now
-	!this%mml_soil_ice_grc    (:,:)   = 0.0 
-	
-	!this%mml_soil_liq_grc    (:,1)   = 0.0 
-	!this%mml_soil_liq_grc    (:,2)   = 0.082736907779029 
-	!this%mml_soil_liq_grc    (:,3)   = 0.136410099727240
-	!this%mml_soil_liq_grc    (:,4)   = 0.224902232958626
-	!this%mml_soil_liq_grc    (:,5)   = 0.370801095306842
-	!this%mml_soil_liq_grc    (:,6)   = 0.611347653031295
-	!this%mml_soil_liq_grc    (:,7)   = 1.007941879345298 
-	!this%mml_soil_liq_grc    (:,8)   = 1.661815216106055
-	!this%mml_soil_liq_grc    (:,9)   = 2.739870094767183
-	!this%mml_soil_liq_grc    (:,10)  = 3.410915413537486
+	! (was commented... )
+! 	this%mml_soil_ice_grc    (:,:)   = 0.0 
+! 	
+! 	this%mml_soil_liq_grc    (:,1)   = 0.0 
+! 	this%mml_soil_liq_grc    (:,2)   = 0.082736907779029 
+! 	this%mml_soil_liq_grc    (:,3)   = 0.136410099727240
+! 	this%mml_soil_liq_grc    (:,4)   = 0.224902232958626
+! 	this%mml_soil_liq_grc    (:,5)   = 0.370801095306842
+! 	this%mml_soil_liq_grc    (:,6)   = 0.611347653031295
+! 	this%mml_soil_liq_grc    (:,7)   = 1.007941879345298 
+! 	this%mml_soil_liq_grc    (:,8)   = 1.661815216106055
+! 	this%mml_soil_liq_grc    (:,9)   = 2.739870094767183
+! 	this%mml_soil_liq_grc    (:,10)  = 3.410915413537486
 
   
   end subroutine InitCold

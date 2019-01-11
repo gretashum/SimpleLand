@@ -145,6 +145,10 @@ OPTIONS
                               (arb_ic=start with arbitrary initial conditions if
                                initial conditions do not exist)
                               (startup=ensure that initial conditions are being used)
+     -clm_usr_name     "name" Dataset resolution/descriptor for personal datasets.
+                              Default: not used
+                              Example: 1x1pt_boulderCO_c090722 to describe location,
+                                       number of pts, and date files created
      -co2_type "value"        Set CO2 the type of CO2 variation to use.
      -co2_ppmv "value"        Set CO2 concentration to use when co2_type is constant (ppmv).
      -crop                    Toggle for prognostic crop model. (default is off)
@@ -224,6 +228,8 @@ Note: The precedence for setting the values of namelist variables is (highest to
              (i.e. CLM_NAMELIST_OPTS env_run variable)
       2. values read from the file(s) specified by -infile,
              (i.e.  user_nl_clm files)
+      3. datasets from the -clm_usr_name option,
+             (i.e.  CLM_USRDAT_NAME env_run variable)
       4. values set from a use-case scenario, e.g., -use_case
              (i.e.  CLM_NML_USE_CASE env_run variable)
       5. values from the namelist defaults file.
@@ -244,6 +250,7 @@ sub process_commandline {
   my %opts = ( cimeroot              => undef,
                config                => "config_cache.xml",
                csmdata               => undef,
+               clm_usr_name          => undef,
                co2_type              => undef,
                co2_ppmv              => undef,
                clm_demand            => "null",
@@ -262,7 +269,7 @@ sub process_commandline {
                drydep                => 0,
                output_reals_filename => undef,
                fire_emis             => 0,
-               megan                 => 0,
+               megan                 => "default",
                irrig                 => "default",
                res                   => "default",
                silent                => 0,
@@ -284,6 +291,7 @@ sub process_commandline {
              "co2_type=s"                => \$opts{'co2_type'},
              "config=s"                  => \$opts{'config'},
              "csmdata=s"                 => \$opts{'csmdata'},
+             "clm_usr_name=s"            => \$opts{'clm_usr_name'},
              "envxml_dir=s"              => \$opts{'envxml_dir'},
              "drydep!"                   => \$opts{'drydep'},
              "fire_emis!"                => \$opts{'fire_emis'},
@@ -443,6 +451,7 @@ sub read_namelist_definition {
   # variables that can be output by build-namelist.
   my $phys = $physv->as_filename( );
   my @nl_definition_files = ( "$cfgdir/namelist_files/namelist_definition_drv.xml",
+                              "$cfgdir/namelist_files/namelist_definition_drv_flds.xml",
                               "$cfgdir/namelist_files/namelist_definition_$phys.xml" );
   foreach my $nl_defin_file  ( @nl_definition_files ) {
     (-f "$nl_defin_file")  or  $log->fatal_error("Cannot find namelist definition file \"$nl_defin_file\"");
@@ -500,7 +509,10 @@ sub read_namelist_defaults {
   my $phys = $physv->as_filename( );
   # The namelist defaults file contains default values for all required namelist variables.
   my @nl_defaults_files = ( "$cfgdir/namelist_files/namelist_defaults_overall.xml",
-                            "$cfgdir/namelist_files/namelist_defaults_$phys.xml" );
+                            "$cfgdir/namelist_files/namelist_defaults_$phys.xml",
+                            "$cfgdir/namelist_files/namelist_defaults_drv.xml",
+                            "$cfgdir/namelist_files/namelist_defaults_fire_emis.xml",
+                            "$cfgdir/namelist_files/namelist_defaults_drydep.xml" );
 
   # Add the location of the use case defaults files to the options hash
   $opts->{'use_case_dir'} = "$cfgdir/namelist_files/use_cases";
@@ -579,6 +591,8 @@ sub process_namelist_user_input {
   # 0. namelist values set by specific command-line options, like, -d, -sim_year
   #         (i.e.  CLM_BLDNML_OPTS env_run variable)
   # The results of these are needed for the final two user input
+  # 3. datasets from the -clm_usr_name option,
+  #         (i.e.  CLM_USRDAT_NAME env_run variable)
   # 4. values set from a use-case scenario, e.g., -use_case
   #         (i.e.  CLM_NML_USE_CASE env_run variable)
   #
@@ -596,8 +610,9 @@ sub process_namelist_user_input {
   # Apply the commandline options and make sure the user didn't change it above
   process_namelist_commandline_options($opts, $nl_flags, $definition, $defaults, $nl, $cfg, $physv);
 
-  # The last two process command line arguments for use_case
+  # The last two process command line arguments for usr_name and use_case
   # They require that process_namelist_commandline_options was called before this
+  process_namelist_commandline_clm_usr_name($opts, $nl_flags, $definition, $defaults, $nl, $cfg, $envxml_ref);
   process_namelist_commandline_use_case($opts, $nl_flags, $definition, $defaults, $nl, $cfg, $envxml_ref, $physv);
 
   # Set the start_type by the command line setting for clm_start_type
@@ -669,7 +684,9 @@ sub setup_cmdl_resolution {
     $val = &quote_string( $nl_flags->{'res'} );
     if (  ! $definition->is_valid_value( $var, $val ) ) {
       my @valid_values   = $definition->get_valid_values( $var );
-      $log->fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values");
+      if ( ! defined($opts->{'clm_usr_name'}) || $nl_flags->{'res'} ne $opts->{'clm_usr_name'} ) {
+        $log->fatal_error("$var has a value ($val) that is NOT valid. Valid values are: @valid_values");
+      }
     }
   }
 }
@@ -1409,6 +1426,58 @@ sub process_namelist_commandline_infile {
 
 #-------------------------------------------------------------------------------
 
+sub process_namelist_commandline_clm_usr_name {
+  # Process the -clm_usr_name argument
+  my ($opts, $nl_flags, $definition, $defaults, $nl, $cfg, $envxml_ref) = @_;
+
+  if (defined $opts->{'clm_usr_name'}) {
+    # The user files definition is contained in an xml file with the same format as the defaults file.
+
+    # The one difference is that variables are expanded.
+    # Create a new NamelistDefaults object.
+    my $nl_defaults_file = "$nl_flags->{'cfgdir'}/namelist_files/namelist_defaults_usr_files.xml";
+    my $uf_defaults = Build::NamelistDefaults->new("$nl_defaults_file", $cfg );
+    # Loop over the variables specified in the user files
+    # Add each one to the namelist.
+    my @vars = $uf_defaults->get_variable_names();
+    my %settings;
+    $settings{'mask'}           = $nl_flags->{'mask'};
+    $settings{'sim_year'}       = $nl_flags->{'sim_year'};
+    $settings{'rcp'}            = $nl_flags->{'rcp'};
+    $settings{'sim_year_range'} = $nl_flags->{'sim_year_range'};
+    $settings{'clm_accelerated_spinup'} = $nl_flags->{'clm_accelerated_spinup'};
+    $settings{'clm_usr_name'}   = $opts->{'clm_usr_name'};
+
+    if ( $nl_flags->{'inputdata_rootdir'} eq "\$DIN_LOC_ROOT" ) {
+      $settings{'csmdata'}     = $ENV{'DIN_LOC_ROOT'};
+    } else {
+      $settings{'csmdata'}     = $nl_flags->{'inputdata_rootdir'};
+    }
+
+    my $nvars = 0;
+    my $nl_usrfile = Build::Namelist->new();
+    foreach my $var (@vars) {
+      my $val = $uf_defaults->get_usr_file($var, $definition, \%settings);
+
+      if ($val) {
+        $log->message("adding clm user file defaults for var $var with val $val");
+        add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl_usrfile, $var, 'val'=>$val);
+        $nvars++;
+      }
+    }
+    if ( $nvars == 0 ) {
+      $log->message("setting clm_usr_name -- but did NOT find any user datasets: $opts->{'clm_usr_name'}", $opts);
+    }
+    # Go through all variables and expand any XML env settings in them
+    expand_xml_variables_in_namelist( $nl_usrfile, $envxml_ref );
+    # Merge input values into namelist.  Previously specified values have higher precedence
+    # and are not overwritten.
+    $nl->merge_nl($nl_usrfile);
+  }
+}
+
+#-------------------------------------------------------------------------------
+
 sub process_namelist_commandline_use_case {
   # Now process the -use_case arg.
   my ($opts, $nl_flags, $definition, $defaults, $nl, $cfg, $envxml_ref, $physv) = @_;
@@ -1501,12 +1570,15 @@ sub process_namelist_inline_logic {
   setup_logic_dynamic_roots($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_params_file($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_create_crop_landunit($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
+  setup_logic_subgrid($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_fertilizer($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_grainproduct($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_soilstate($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_demand($opts, $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_surface_dataset($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
-  setup_logic_initial_conditions($opts, $nl_flags, $definition, $defaults, $nl, $physv);
+  if ( remove_leading_and_trailing_quotes($nl_flags->{'clm_start_type'}) ne "branch" ) {
+    setup_logic_initial_conditions($opts, $nl_flags, $definition, $defaults, $nl, $physv);
+  }
   setup_logic_dynamic_subgrid($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_spinup($opts,  $nl_flags, $definition, $defaults, $nl, $physv);
   setup_logic_supplemental_nitrogen($opts, $nl_flags, $definition, $defaults, $nl, $physv);
@@ -1674,6 +1746,10 @@ sub process_namelist_inline_logic {
   #######################################################################
   setup_logic_hydrology_switches($nl, $physv);
 
+  #########################################
+  # namelist group: clm_initinterp_inparm #
+  #########################################
+  setup_logic_initinterp($opts, $nl_flags, $definition, $defaults, $nl, $physv);
 }
 
 #-------------------------------------------------------------------------------
@@ -2001,6 +2077,18 @@ sub setup_logic_create_crop_landunit {
     }
   }
 }
+
+#-------------------------------------------------------------------------------
+
+sub setup_logic_subgrid {
+   my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
+
+   my $var = 'run_zero_weight_urban';
+   if ($physv->as_long() >= $physv->as_long("clm4_5")) {
+      add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, $var);
+   }
+}
+
 #-------------------------------------------------------------------------------
 
 sub setup_logic_cnfire {
@@ -2035,7 +2123,7 @@ sub setup_logic_cnfire {
 sub setup_logic_cnprec {
   my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
 
-  if ( $physv->as_long() >= $physv->as_long("clm5_0") && &value_is_true($nl->get_value('use_cn')) ) {
+  if ( $physv->as_long() >= $physv->as_long("clm4_5") && &value_is_true($nl_flags->{'use_cn'}) ) {
      add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults,
                  $nl, 'ncrit', 'use_cn'=>$nl_flags->{'use_cn'});
      add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults,
@@ -2299,7 +2387,10 @@ sub setup_logic_initial_conditions {
     }
     if ($opts->{'ignore_ic_date'}) {
       if ( &value_is_true($nl_flags->{'use_crop'}) ) {
-        $log->fatal_error("using ignore_ic_date is incompatable with crop!");
+        $log->warning("using ignore_ic_date is incompatable with crop! If you choose to ignore this error, " . 
+                      "the counters since planting for crops will be messed up. \nSo you should ignore at " . 
+                      "least the first season for crops. And since it will impact the 20 year means, ideally the " .
+                      "first 20 years should be ignored.");
       }
     } elsif ($opts->{'ignore_ic_year'}) {
        $settings{'ic_md'} = $ic_date;
@@ -2322,9 +2413,9 @@ sub setup_logic_initial_conditions {
           # Delete any date settings, except for crop
           delete( $settings{'ic_ymd'} );
           delete( $settings{'ic_md'}  );
-          if ( &value_is_true($nl_flags->{'use_crop'}) ) {
-             $settings{'ic_md'} = $ic_date;
-          }
+          #if ( &value_is_true($nl_flags->{'use_crop'}) ) {
+             #$settings{'ic_md'} = $ic_date;
+          #}
           add_default($opts,  $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "init_interp_sim_years" );
           add_default($opts,  $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, "init_interp_how_close" );
           foreach my $sim_yr ( split( /,/, $nl->get_value("init_interp_sim_years") )) {
@@ -3636,6 +3727,26 @@ sub setup_logic_lnd2atm {
 
    if ($physv->as_long() >= $physv->as_long("clm4_5")) {
       add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, 'melt_non_icesheet_ice_runoff');
+   }
+}
+
+#-------------------------------------------------------------------------------
+
+sub setup_logic_initinterp {
+   #
+   # Options related to init_interp
+   #
+   my ($opts, $nl_flags, $definition, $defaults, $nl, $physv) = @_;
+
+   if ($physv->as_long() >= $physv->as_long("clm4_5")) {
+      my $var = 'init_interp_method';
+      if ( &value_is_true($nl->get_value("use_init_interp"))) {
+         add_default($opts, $nl_flags->{'inputdata_rootdir'}, $definition, $defaults, $nl, $var);
+      } else {
+         if (defined($nl->get_value($var))) {
+            $log->fatal_error("$var can only be set if use_init_interp is true");
+         }
+      }
    }
 }
 

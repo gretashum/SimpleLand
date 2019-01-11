@@ -46,7 +46,7 @@ contains
     use clm_varpar       , only: clm_varpar_init, natpft_lb, natpft_ub, cft_lb, cft_ub, maxpatch_glcmec
     use clm_varcon       , only: clm_varcon_init
     use landunit_varcon  , only: landunit_varcon_init, max_lunit
-    use clm_varctl       , only: fsurdat, fatmlndfrc, noland, version, mml_surdat  
+    use clm_varctl       , only: fsurdat, fatmlndfrc, noland, version  
     use pftconMod        , only: pftcon       
     use decompInitMod    , only: decompInit_lnd, decompInit_clumps, decompInit_glcp
     use domainMod        , only: domain_check, ldomain, domain_init
@@ -264,7 +264,7 @@ contains
     use accumulMod            , only : print_accum_fields 
     use clm_varpar            , only : nlevsno
     use clm_varcon            , only : spval
-    use clm_varctl            , only : finidat, finidat_interp_source, finidat_interp_dest, fsurdat, mml_surdat
+    use clm_varctl            , only : finidat, finidat_interp_source, finidat_interp_dest, fsurdat
     use clm_varctl            , only : use_century_decomp, single_column, scmlat, scmlon, use_cn, use_fates
     use clm_varctl            , only : use_crop, ndep_from_cpl
     use clm_varorb            , only : eccen, mvelpp, lambm0, obliqr
@@ -272,7 +272,7 @@ contains
     use clm_time_manager      , only : get_curr_date, get_nstep, advance_timestep 
     use clm_time_manager      , only : timemgr_init, timemgr_restart_io, timemgr_restart, is_restart
     use CIsoAtmTimeseriesMod  , only : C14_init_BombSpike, use_c14_bombspike, C13_init_TimeSeries, use_c13_timeseries
-    use DaylengthMod          , only : InitDaylength, daylength
+    use DaylengthMod          , only : InitDaylength
     use dynSubgridDriverMod   , only : dynSubgrid_init
     use fileutils             , only : getfil
     use initInterpMod         , only : initInterp
@@ -293,7 +293,7 @@ contains
     ! !ARGUMENTS    
     !
     ! !LOCAL VARIABLES:
-    integer               :: c,i,g,j,k,l,p! indices
+    integer               :: c,i,j,k,l,p! indices
     integer               :: yr           ! current year (0, ...)
     integer               :: mon          ! current month (1 -> 12)
     integer               :: day          ! current day (1 -> 31)
@@ -316,7 +316,6 @@ contains
     logical               :: lexist
     integer               :: closelatidx,closelonidx
     real(r8)              :: closelat,closelon
-    real(r8)              :: max_decl      ! temporary, for calculation of max_dayl
     integer               :: begp, endp
     integer               :: begc, endc
     integer               :: begl, endl
@@ -372,17 +371,8 @@ contains
 
     call t_stopf('init_orbd')
     
-    call InitDaylength(bounds_proc, declin=declin, declinm1=declinm1)
+    call InitDaylength(bounds_proc, declin=declin, declinm1=declinm1, obliquity=obliqr)
              
-    ! Initialize maximum daylength, based on latitude and maximum declination
-    ! given by the obliquity use negative value for S. Hem
-
-    do g = bounds_proc%begg,bounds_proc%endg
-       max_decl = obliqr
-       if (grc%lat(g) < 0._r8) max_decl = -max_decl
-       grc%max_dayl(g) = daylength(grc%lat(g), max_decl)
-    end do
-
     ! History file variables
 
     if (use_cn) then
@@ -549,7 +539,8 @@ contains
 
        ! Interpolate finidat onto new template file
        call getfil( finidat_interp_source, fnamer,  0 )
-       call initInterp(filei=fnamer, fileo=finidat_interp_dest, bounds=bounds_proc)
+       call initInterp(filei=fnamer, fileo=finidat_interp_dest, bounds=bounds_proc, &
+            glc_behavior=glc_behavior)
 
        ! Read new interpolated conditions file back in
        call restFile_read(bounds_proc, finidat_interp_dest, glc_behavior)
