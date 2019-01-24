@@ -689,7 +689,8 @@ contains
      
      
      ! Make output albedo to be a combination of all 4 albedo streams:
-     albedo_fin = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
+     albedo_fin(:) = 1.0e36_r8
+     albedo_fin(:) = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
      ! temporary fix:
      !lw_abs(begg:endg) = lwdn(begg:endg)
      !sw_abs(begg:endg) = 0.7*fsds(begg:endg)
@@ -765,6 +766,13 @@ contains
      ram(:)		=	uref / (ustar * ustar)				! [s/m] = [m/s] / ([m/s] * [m/s])
      rah(:)		=	(thref - tsrf) / (ustar * tstar)	! [s/m] = [K] / ([m/s] * [K])
      res(:)		=  	(evaprs + rah)						! [s/m]
+     
+     ! cap res at 100,000 ()
+     where ( res > 100000. )
+		res(:) = 100000.0_r8
+	 end where
+
+
      ! GBB: See what GFDL does for its evaporative resistance; should be a function
 	 ! of stomatal conductance and LAI
 	 
@@ -884,14 +892,29 @@ contains
 		!
 		! MML: plan - use qsat instead of esat, by calling CLM function QSat. Modify these
 		! equations accordingly (and check units!!!!) 
+	
+	! Initialize beta = 1.0 (no extra bucket resistance) everywhere. Overwrite with smaller values where appropriate.
+	beta(:) = 1.0_r8
 
+	! similarly initialize mml_lnd_effective_res_grc and mml_lnd_res_grc to avoid nans
+	atm2lnd_inst%mml_lnd_effective_res_grc = 9999.99_r8
+	atm2lnd_inst%mml_lnd_res_grc = 9999.99_r8 
+	
 	where ( snow <= 0 )
 		beta(:) = min ( water/(.75 * bucket_cap) , 1.0_r8 )		! scaling factor [unitless]
+		! OH I bet the problem is that I only end up defining beta in places where snow<0 -- hence the nan problem!!! So I should initialize
+		! a starting beta matrix where everywhere is 1.0 or something! 
+		! add minimum beta value in case water is negative?
 		!lhflx(:) 	= cpair / gamma * (esat - eref) / res * beta * rhoair 	! [W/m2] = [J/kg/K] / [Pa/K] * [Pa] / [s/m] * [unitless] * [kg/m3] 
 		!dlhflx(:) 	= cpair / gamma * desat / res * beta * rhoair			! [W/m2/K]
 		lhflx(:)	= rhoair * lambda * (qsrf - qref) * beta / res 	! [W/m2] = [kg/m3] * [J/kg] * [kg/kg] * [unitless] / [s/m] -> kg/m3 * J/kg * m/s = kg/kg J/s 1/m2 = W/m2
 		dlhflx(:) 	= rhoair * lambda * dqsrf * beta / res			! [W/m2/K] = [kg/m3] * [J/kg] * [kg/kg/K] * [unitless] / [s/m] -> kg/m3 * J/kg * 1/K * m/s -> J/s /K /m2 = W/m2/K
 		! got here doing unit analysis - make sure this is actually the right equation!!!  
+	end where
+	
+	! make sure beta isn't negative (if neg, set equal to 0)
+	where ( beta <= 0.0 )
+		beta(:) = 0.0_r8
 	end where
 	
 	where ( snow > 0 ) ! go where there is snow and overwrite the value of lhflx and dlhflx
@@ -912,6 +935,9 @@ contains
 		dlhflx(:) 	= 0._r8								! [W/m2/K]
 	end where
 	
+
+
+
 	
 	! Net flux of energy into soil [W/m2] and temperature derivative [W/m2/K] from the 
 	! surface energy imbalance given other fluxes:
@@ -1517,6 +1543,20 @@ contains
         atm2lnd_inst%mml_out_qref2m_grc(g) = qref(g) - qstar(g) / vkc * &
      			( log((zref(g) - h_disp(g))/(z0h(g) + 2)) - &
      			  psi_h((zref(g) - h_disp(g))/obu(g)) + psi_h((z0h(g) + 2)/obu(g))  )
+     	! MML problems with passing a nan here to the coupler - check if nan, if so print more info
+     	
+     	if( isnan(atm2lnd_inst%mml_out_qref2m_grc(g)) ) then
+    		write(iulog,*)subname, 'MML ERROR: mml_out_qref2m_grc is a nan \n', &
+    					'err = ', err(g), &
+    					'\n qref = ', qref(g), &
+    					'\n qstar = ', qstar(g), &
+    					'\n zref = ', zref(g), &
+    					'\n h_disp = ', h_disp(g), &
+    					'\n z0h = ', z0h(g), &
+    					'\n obu = ', obu(g)
+    		call endrun(msg=errmsg(__FILE__, __LINE__))
+    	end if
+     	
      	
      
      	! GBB: Did you check this?
@@ -1580,6 +1620,51 @@ contains
      ! (this will only work on fields without any depth dimension).
      
      
+     
+     !	! save beta out for netcdf
+!	atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
+!        	
+!	! and 1/beta * (rs + rah)  1/beta * res , the effective resistnace
+!	atm2lnd_inst%mml_lnd_effective_res_grc(:) = res(:) / beta(:)
+
+! save beta out for netcdf
+    do g = begg,endg
+                atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !beta(:)
+                if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+                        atm2lnd_inst%mml_lnd_beta_grc(g) = 1.0e36_r8 ! something very small
+                end if
+                ! if beta smaller than 0.01 set it larger 
+                !if(atm2lnd_inst%mml_lnd_beta_grc(g)<0.01) then
+                !        atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01 ! something very small
+                !end if
+                
+                atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(g) / beta(g) 
+                if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+                        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 1.0e36_r8
+                end if
+                !if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
+                !        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10001.0
+                !end if
+                !if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
+                !        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
+                !end if
+                
+                atm2lnd_inst%mml_lnd_res_grc(g) = res(g)
+    	      	if( isnan(atm2lnd_inst%mml_lnd_res_grc(g)) ) then
+    	        	atm2lnd_inst%mml_lnd_res_grc(g) = 1.e36_r8
+     		    end if
+     		    if( atm2lnd_inst%mml_lnd_res_grc(g)>10000. ) then
+    	        	atm2lnd_inst%mml_lnd_res_grc(g) = 1.e36_r8
+     		    end if
+                
+     end do
+     
+          ! save out res for the netcdf 
+     !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
+     
+!     do g = begg,endg
+!           
+!     end do
      !*********************************************
      ! Export my land data to the atmosphere
      ! (send these to lnd2atm)
