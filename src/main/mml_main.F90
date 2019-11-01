@@ -145,6 +145,9 @@ contains
    	
    	real(r8)	tol, obu0, obu1
    	
+!    	!Force-set a maximum snow value
+	real(r8)	:: snowcap
+!    	
    	
    	! Formerly "allocate" "deallocate" variables:
    	
@@ -362,6 +365,23 @@ contains
      begg = bounds%begg
      endg = bounds%endg
      mml_nsoi = 10
+     
+     ! Maximum allowed snow:
+     snowcap = 5000.0_r8    ! somewhat arbitrary... thats 10m of snow at 500 kg/m3 (mid-value for a firn)
+     ! Paterson, W.S.B. 1994. The Physics of Glaciers
+     ! kg/m3
+     ! 
+     ! New snow (immediately after falling in calm)	50-70
+     ! Damp new snow	100-200
+     ! Settled snow	200-300
+     ! Depth hoar	100-300
+     ! Wind packed snow	350-400
+     ! Firn	400-830
+     ! Very wet snow and firn	700-800
+     ! Glacier ice	830-917
+     !
+     
+     
      
 !    ! GBB: You probably do not have to allocate memory if these variabls are local
 !	! to this routine. You should be able to use: 
@@ -689,7 +709,8 @@ contains
      
      
      ! Make output albedo to be a combination of all 4 albedo streams:
-     albedo_fin = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
+     albedo_fin(:) = 1.0e36_r8
+     albedo_fin(:) = fsr(:) / ( fsds_dir(:,1) + fsds_dir(:,2) + fsds_dif(:,1) +  fsds_dif(:,2) )
      ! temporary fix:
      !lw_abs(begg:endg) = lwdn(begg:endg)
      !sw_abs(begg:endg) = 0.7*fsds(begg:endg)
@@ -766,15 +787,16 @@ contains
      rah(:)		=	(thref - tsrf) / (ustar * tstar)	! [s/m] = [K] / ([m/s] * [K])
      res(:)		=  	(evaprs + rah)						! [s/m]
      
-     ! save out res for the netcdf 
-     !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
-     do g = begg,endg
-		atm2lnd_inst%mml_lnd_res_grc(g) = res(g)
-		if( isnan(atm2lnd_inst%mml_lnd_res_grc(g)) ) then
-			atm2lnd_inst%mml_lnd_res_grc(g) = 10000.
-		end if 
-	end do
-     
+     ! cap res at 100,000 ()
+     where ( res > 100000. )
+		res(:) = 100000.0_r8
+	 end where
+
+
+	! MML 01112019:
+	! save res out for the netcdf (if I don't below...)
+	atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
+	
      ! GBB: See what GFDL does for its evaporative resistance; should be a function
 	 ! of stomatal conductance and LAI
 	 
@@ -894,14 +916,29 @@ contains
 		!
 		! MML: plan - use qsat instead of esat, by calling CLM function QSat. Modify these
 		! equations accordingly (and check units!!!!) 
+	
+	! Initialize beta = 1.0 (no extra bucket resistance) everywhere. Overwrite with smaller values where appropriate.
+	beta(:) = 1.0_r8
 
+	! similarly initialize mml_lnd_effective_res_grc and mml_lnd_res_grc to avoid nans
+	atm2lnd_inst%mml_lnd_effective_res_grc = 9999.99_r8
+	atm2lnd_inst%mml_lnd_res_grc = 9999.99_r8 
+	
 	where ( snow <= 0 )
 		beta(:) = min ( water/(.75 * bucket_cap) , 1.0_r8 )		! scaling factor [unitless]
+		! OH I bet the problem is that I only end up defining beta in places where snow<0 -- hence the nan problem!!! So I should initialize
+		! a starting beta matrix where everywhere is 1.0 or something! 
+		! add minimum beta value in case water is negative?
 		!lhflx(:) 	= cpair / gamma * (esat - eref) / res * beta * rhoair 	! [W/m2] = [J/kg/K] / [Pa/K] * [Pa] / [s/m] * [unitless] * [kg/m3] 
 		!dlhflx(:) 	= cpair / gamma * desat / res * beta * rhoair			! [W/m2/K]
 		lhflx(:)	= rhoair * lambda * (qsrf - qref) * beta / res 	! [W/m2] = [kg/m3] * [J/kg] * [kg/kg] * [unitless] / [s/m] -> kg/m3 * J/kg * m/s = kg/kg J/s 1/m2 = W/m2
 		dlhflx(:) 	= rhoair * lambda * dqsrf * beta / res			! [W/m2/K] = [kg/m3] * [J/kg] * [kg/kg/K] * [unitless] / [s/m] -> kg/m3 * J/kg * 1/K * m/s -> J/s /K /m2 = W/m2/K
 		! got here doing unit analysis - make sure this is actually the right equation!!!  
+	end where
+	
+	! make sure beta isn't negative (if neg, set equal to 0)
+	where ( beta <= 0.0 )
+		beta(:) = 0.0_r8
 	end where
 	
 	where ( snow > 0 ) ! go where there is snow and overwrite the value of lhflx and dlhflx
@@ -922,27 +959,30 @@ contains
 		dlhflx(:) 	= 0._r8								! [W/m2/K]
 	end where
 	
-	! save beta out for netcdf
-	do g = begg,endg
-		atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !5.0 !beta(:)
-		if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
-			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01	! something very small
-		end if
-		! if beta smaller than 0.01 set it larger 
-		if(atm2lnd_inst%mml_lnd_beta_grc(g)<0.01) then
-			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01	! something very small
-		end if
-		
-		atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(g) / beta(g) !7.0
-		if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
-			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
-		end if
-		if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
-			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
-		end if
-		
-	end do
-	!atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
+!	! MML 11012019
+!	! copied from marysa_dev  -  see if this breaks stuff... if beta has weird values it might get angry
+!	! save beta out for netcdf
+!   ! edit: this happens lower down
+!	do g = begg,endg
+!		atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !5.0 !beta(:)
+!		if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+!			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01	! something very small
+!		end if
+!		! if beta smaller than 0.01 set it larger 
+!		if(atm2lnd_inst%mml_lnd_beta_grc(g)<0.01) then
+!			atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01	! something very small
+!		end if
+!		
+!		atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(g) / beta(g) !7.0
+!		if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+!			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
+!		end if
+!		if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
+!			atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
+!		end if
+!		
+!	end do
+!	!atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
 	
 	! and 1/beta * (rs + rah)  1/beta * res , the effective resistnace
 	!atm2lnd_inst%mml_lnd_effective_res_grc(:) = res(:) / beta(:)
@@ -955,8 +995,6 @@ contains
     ! lets temporarily save this value out as gsoi (not the real gsoi, but the right "family"
     gsoi(:) = f0							! [W/m2]
      
-
-    
      
 	! -------------------------------------------------------------
 	! Initial pass at soil temperatures
@@ -1450,8 +1488,33 @@ contains
        	if ( snow(g) < -1e-02  .or. water(g) < -1e-02  ) then
 			write(iulog,*)subname, 'MML WARNING snow or water bucket went negative, uhoh (after runoff)'
 		end if
+		
+! 		if( isnan(snow(g)) ) then
+!     		write(iulog,*)subname, 'MML ERROR:snow is a nan \n', &
+!     		!call endrun(msg=errmsg(__FILE__, __LINE__))
+!     	end if
+!     
 	end do
 	
+	!---------------------------------------
+	! Snow build-up: if there is too much snow, send extra to runoff 
+	! 	(note, not using any energy to melt it or anything - its getting sent as ice to runoff)
+do g = begg, endg 
+	if (snow(g) > snowcap ) then  
+		runoff(g) = runoff(g) + (snow(g) - snowcap) 
+		snow(g) = snowcap 
+	end if 
+	 
+	if (snow(g) <  -1.0e-02) then 
+		write(iulog,*)subname, 'MML WARNING snow went negative after implementing snow cap... ' 
+		snow(g) = 0.0 
+	end if 
+	 
+	if (snow(g) > snowcap) then 
+		write(iulog,*)subname, 'MML WARNING snow exceeds snow cap after implementing snow cap... ' 
+	end if 
+	 
+end do 
 	
 	! -------------------------------------------------------------
     ! Now what now what now what? This is so exciting :)
@@ -1534,8 +1597,6 @@ contains
      			( log((zref(g) - h_disp(g))/(z0m(g) + 10)) - &
      			  psi_m((zref(g) - h_disp(g))/obu(g)) + psi_m((z0m(g) + 10)/obu(g)) )
      	
-
-     	
      	! T2m
      	! Note: this calculation is for theta_2m, NOT T_2m... convert! 
      	! conversion: theta = T * (p/p0) ^ (R/cp)
@@ -1545,8 +1606,6 @@ contains
      	atm2lnd_inst%mml_out_tref2m_grc(g) = thref(g) - tstar(g) / vkc * &
      			( log((zref(g) - h_disp(g))/(z0h(g) + 2)) - &
      			  psi_h((zref(g) - h_disp(g))/obu(g)) + psi_h((z0h(g) + 2)/obu(g))  )
-
-    	
      	! MML: check this again (T's vs Theta's in all the places), make sure I've got 
      	! them set right (is tref2m a temperature or a potential temperature? Does this eq'n 
      	! GIVE a temperature or a potential temperature? etc... check!)
@@ -1593,9 +1652,6 @@ contains
 		! this differes from thref version -> maybe I need to calculate a theta_srf using a reference pressure p0? 
 		! ( theta = T * (p0 / p ) ^ (R/cp) where R/cp ~ 0.286 for air... ... use a p0 = 1000 hPa = 100000 Pa 
 		theta_srf(g) = tsrf(g) * (100000._r8 / pref(g)	)**(0.286_r8)
-
-    	
-    	
 		! (using pref which is pbot, assuming psrf ~ pref)
 		
 !		diag2_1d(g) = tsrf(g) + tstar(g) / vkc * &		! aha! I bet that was the problem - I never defined theta_srf
@@ -1637,6 +1693,51 @@ contains
      ! (this will only work on fields without any depth dimension).
      
      
+     
+     !	! save beta out for netcdf
+!	atm2lnd_inst%mml_lnd_beta_grc(:) = beta(:)
+!        	
+!	! and 1/beta * (rs + rah)  1/beta * res , the effective resistnace
+!	atm2lnd_inst%mml_lnd_effective_res_grc(:) = res(:) / beta(:)
+
+! save beta out for netcdf
+    do g = begg,endg
+                atm2lnd_inst%mml_lnd_beta_grc(g) = beta(g) !beta(:)
+                if(isnan(atm2lnd_inst%mml_lnd_beta_grc(g))) then
+                        atm2lnd_inst%mml_lnd_beta_grc(g) = 1.0e36_r8 ! something very small
+                end if
+                ! if beta smaller than 0.01 set it larger 
+                !if(atm2lnd_inst%mml_lnd_beta_grc(g)<0.01) then
+                !        atm2lnd_inst%mml_lnd_beta_grc(g) = 0.01 ! something very small
+                !end if
+                
+                atm2lnd_inst%mml_lnd_effective_res_grc(g) = res(g) / beta(g) 
+                if(isnan(atm2lnd_inst%mml_lnd_effective_res_grc(g))) then
+                        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 1.0e36_r8
+                end if
+                !if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
+                !        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10001.0
+                !end if
+                !if(atm2lnd_inst%mml_lnd_effective_res_grc(g)>10000.) then
+                !        atm2lnd_inst%mml_lnd_effective_res_grc(g) = 10000.0
+                !end if
+                
+                atm2lnd_inst%mml_lnd_res_grc(g) = res(g)
+    	      	if( isnan(atm2lnd_inst%mml_lnd_res_grc(g)) ) then
+    	        	atm2lnd_inst%mml_lnd_res_grc(g) = 1.e36_r8
+     		    end if
+     		    if( atm2lnd_inst%mml_lnd_res_grc(g)>10000. ) then
+    	        	atm2lnd_inst%mml_lnd_res_grc(g) = 1.e36_r8
+     		    end if
+                
+     end do
+     
+          ! save out res for the netcdf 
+     !atm2lnd_inst%mml_lnd_res_grc(:) = res(:)
+     
+!     do g = begg,endg
+!           
+!     end do
      !*********************************************
      ! Export my land data to the atmosphere
      ! (send these to lnd2atm)
@@ -1644,11 +1745,10 @@ contains
      ! To be sure of what is actually being sent to the atmosphere, see subroutine lnd_export
      ! in /glade/p/work/mlague/cesm_source/cesm1_5_beta05_mml_land/components/clm/src/cpl/lnd_import_export.F90 
      
-      
-     
      ! lnd -> atm
      lnd2atm_inst%t_rad_grc = tsrf									! radiative temperature (Kelvin)
      lnd2atm_inst%t_ref2m_grc = atm2lnd_inst%mml_out_tref2m_grc 	! 2m surface air temperature (Kelvin)
+     !atm2lnd_inst%mml_lnd_ts_grc = tsrf ! dunno what its saving out now... 
      !lnd2atm_inst%q_ref2m_grc = atm2lnd_inst%mml_out_qref2m_grc 	! 2m surface specific humidity (kg/kg)
      !lnd2atm_inst%u_ref10m_grc = atm2lnd_inst%mml_out_uref10m_grc 	! 10m surface wind speed (m/sec)
      
@@ -1715,8 +1815,6 @@ contains
      !write(iulog,*)subname, 'MML Map some of my surface variables onto CLM fields for easy running of diagnostics'
      ! (currently doing this in post-processing, just making a new .nc with the CLM-named vars made out of my vars)
      ! Sensible Heat, Latent Heat, Surface T, 2m T, albedo, evaporation rate (kg/m2/s)
-     
-
      
      
      
